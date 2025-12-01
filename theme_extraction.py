@@ -1,31 +1,56 @@
 import pandas as pd
+from sklearn.feature_extraction.text import TfidfVectorizer
+import os
 
-# Load sentiment data
-df = pd.read_csv("data/sentiment_reviews.csv")
+def extract_themes(input_path="data/nlp_reviews.csv",
+                   output_path="data/themes.csv",
+                   top_n=10):
 
-# Simple theme detection using keyword rules
-def detect_theme(text):
-    text = str(text).lower()
+    df = pd.read_csv(input_path)
 
-    if any(word in text for word in ["login", "password", "otp", "signin"]):
-        return "Account Access Issues"
+    # Make sure text column exists and has no NaNs
+    if "clean_text" not in df.columns:
+        raise ValueError("clean_text column not found. Run nlp_preprocess.py first.")
 
-    if any(word in text for word in ["slow", "lag", "load", "loading", "delay"]):
-        return "Performance Issues"
+    # Replace NaN with empty strings
+    df["clean_text"] = df["clean_text"].fillna("").astype(str)
 
-    if any(word in text for word in ["crash", "freeze", "error", "bug"]):
-        return "App Reliability"
+    print("🔍 Extracting themes using TF-IDF...")
 
-    if any(word in text for word in ["ui", "design", "interface", "layout"]):
-        return "User Interface"
+    results = []
 
-    if any(word in text for word in ["feature", "add", "improve", "request"]):
-        return "Feature Requests"
+    for bank in df["bank"].dropna().unique():
+        subset = df[df["bank"] == bank].copy()
 
-    return "Other"
+        # Drop rows where clean_text is empty
+        subset = subset[subset["clean_text"].str.strip() != ""]
 
-df["theme"] = df["content"].apply(detect_theme)
+        if subset.empty:
+            continue
 
-df.to_csv("data/themed_reviews.csv", index=False)
+        vectorizer = TfidfVectorizer(
+            max_features=1000,
+            ngram_range=(1, 2)
+        )
+        tfidf_matrix = vectorizer.fit_transform(subset["clean_text"])
 
-print("Theme extraction complete! Saved as data/themed_reviews.csv")
+        scores = tfidf_matrix.sum(axis=0).A1
+        terms = vectorizer.get_feature_names_out()
+
+        top_indices = scores.argsort()[::-1][:top_n]
+        top_terms = [(terms[i], scores[i]) for i in top_indices]
+
+        for term, score in top_terms:
+            results.append([bank, term, float(score)])
+
+    theme_df = pd.DataFrame(results, columns=["bank", "term", "score"])
+
+    os.makedirs(os.path.dirname(output_path), exist_ok=True)
+    theme_df.to_csv(output_path, index=False)
+
+    print(f"✔ Theme extraction complete! Saved to: {output_path}")
+
+if __name__ == "__main__":
+    extract_themes()
+
+
