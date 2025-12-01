@@ -1,28 +1,29 @@
 import pandas as pd
 from vaderSentiment.vaderSentiment import SentimentIntensityAnalyzer
+import os
 
-# Load cleaned data
-df = pd.read_csv("data/clean_reviews.csv")
+def run_sentiment(input_path="data/nlp_reviews.csv",
+                  output_path="data/sentiment_reviews.csv"):
 
-analyzer = SentimentIntensityAnalyzer()
+    df = pd.read_csv(input_path)
 
-# Compute sentiment score
-def get_sentiment(text):
-    score = analyzer.polarity_scores(str(text))['compound']
-    if score > 0.05:
-        return "positive"
-    elif score < -0.05:
-        return "negative"
-    else:
-        return "neutral"
+    analyzer = SentimentIntensityAnalyzer()
 
-def get_score(text):
-    return analyzer.polarity_scores(str(text))['compound']
+    print("🔎 Running sentiment analysis...")
 
-df["sentiment_score"] = df["content"].apply(get_score)
-df["sentiment_label"] = df["content"].apply(get_sentiment)
+    df["sentiment_score"] = df["clean_text"].apply(
+        lambda x: analyzer.polarity_scores(str(x))["compound"]
+    )
 
-# Save output
-df.to_csv("data/sentiment_reviews.csv", index=False)
+    df["sentiment_label"] = df["sentiment_score"].apply(
+        lambda s: "positive" if s > 0.05 else ("negative" if s < -0.05 else "neutral")
+    )
 
-print("Sentiment analysis complete! Saved as data/sentiment_reviews.csv")
+    os.makedirs(os.path.dirname(output_path), exist_ok=True)
+    df.to_csv(output_path, index=False)
+
+    print(f"✔ Sentiment analysis complete! Saved to: {output_path}")
+
+if __name__ == "__main__":
+    run_sentiment()
+

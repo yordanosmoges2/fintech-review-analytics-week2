@@ -1,32 +1,45 @@
 import pandas as pd
 
-# Load raw dataset
-df = pd.read_csv("data/raw_reviews.csv")
+def preprocess_reviews(input_path="data/raw_reviews.csv",
+                       output_path="data/clean_reviews.csv"):
 
-# ---- CLEANING ----
+    # Load data
+    df = pd.read_csv(input_path)
 
-# Remove duplicates based on the review text column
-df.drop_duplicates(subset=["content"], inplace=True)
+    # ---- FIX 1: Normalize column names ----
+    df.columns = df.columns.str.lower().str.strip()
 
-# Remove rows where review text is missing
-df.dropna(subset=["content"], inplace=True)
+    # ---- FIX 2: Standardize required columns ----
+    required_cols = ["review_id", "bank", "app_name", "score",
+                     "content", "at", "source"]
 
-# Convert date column to YYYY-MM-DD
-df["at"] = pd.to_datetime(df["at"], errors="coerce").dt.date
+    # Warn if required columns missing
+    missing = [c for c in required_cols if c not in df.columns]
+    if missing:
+        print("Missing required columns:", missing)
 
-# Keep only the important columns for analysis
-df_clean = df[[
-    "review_id",
-    "bank",
-    "app_name",
-    "score",
-    "content",
-    "at",
-    "source"
-]]
+    df = df[required_cols]
 
-# Save cleaned dataset
-df_clean.to_csv("data/clean_reviews.csv", index=False)
+    # ---- FIX 3: Drop rows with no text ----
+    df = df.dropna(subset=["content"])
 
-print("Cleaning complete! File saved: data/clean_reviews.csv")
+    # ---- FIX 4: Normalize dates ----
+    df["at"] = pd.to_datetime(df["at"], errors="coerce").dt.date
+
+    # ---- FIX 5: Validate ≥ 400 reviews per bank ----
+    print("\nReview count per bank:")
+    print(df["bank"].value_counts())
+
+    assert df["bank"].value_counts().min() >= 400, \
+        "❌ Each bank must have at least 400 reviews!"
+
+    # ---- FIX 6: Save cleaned dataset ----
+    df.to_csv(output_path, index=False)
+    print("\n✔ Cleaning complete! Saved to:", output_path)
+
+
+if __name__ == "__main__":
+    preprocess_reviews()
+
+
 
