@@ -1,0 +1,2 @@
+total_reviews,avg_rating,rating_distribution,reviews_per_bank,sentiment_counts
+1200,3.819166666666667,"{5: 734, 1: 264, 4: 89, 3: 67, 2: 46}","{'CBE': 400, 'BOA': 400, 'Dashen': 400}","{'positive': 690, 'neutral': 372, 'negative': 138}"
